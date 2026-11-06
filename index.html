@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas Eléctrico de México | Quanta Solar</title>
+<meta name="description" content="Atlas Eléctrico de México: de los recursos energéticos al consumidor. Mapas, gráficas, simuladores y hallazgos con fuentes oficiales (CFE, SENER, DOF).">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="css/styles.css">
+<script>
+  (function(){try{var t=localStorage.getItem('atlas-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="qs" viewBox="0 0 120 120"><g stroke="#FF7A59" stroke-width="5" stroke-linecap="round"><path d="M60 12V3M26 26l-7-7M94 26l7-7M12 60H3M108 60h9"/></g><circle cx="60" cy="60" r="34" fill="none" stroke="#FF7A59" stroke-width="12"/><g fill="#FFF6EF"><rect x="44" y="44" width="14" height="14" rx="3"/><rect x="62" y="44" width="14" height="14" rx="3"/><rect x="44" y="62" width="14" height="14" rx="3"/><rect x="62" y="62" width="14" height="14" rx="3"/></g><path d="M80 80L110 110" stroke="#5EEAD4" stroke-width="12" stroke-linecap="round"/></symbol>
+</svg>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="#m0" aria-label="Atlas Eléctrico de México, inicio">
+      <svg width="40" height="40" viewBox="0 0 120 120" aria-hidden="true"><use href="#qs"/></svg>
+      <span class="brand-txt"><b>QUANTA</b><small>SOLAR</small></span>
+      <span class="brand-sep" aria-hidden="true"></span>
+      <span class="brand-title">Atlas Eléctrico de México<em>de los recursos energéticos al consumidor</em></span>
+    </a>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" aria-label="Cambiar tema claro u oscuro" title="Tema claro/oscuro">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1Z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="spec" aria-hidden="true"></div>
+  <nav class="tabs" aria-label="Módulos">
+    <div class="tabs-in" role="tablist">
+      <a role="tab" href="#m0" data-tab="m0"><span class="tn">0</span>Recursos energéticos</a>
+      <a role="tab" href="#m1" data-tab="m1"><span class="tn">1</span>Generación</a>
+      <a role="tab" href="#m2" data-tab="m2"><span class="tn">2</span>Transmisión</a>
+      <a role="tab" href="#m3" data-tab="m3"><span class="tn">3</span>Distribución</a>
+      <a role="tab" href="#m4" data-tab="m4"><span class="tn">4</span>¿Sabías que?</a>
+      <a role="tab" href="#fuentes" data-tab="fuentes"><span class="tn">§</span>Fuentes</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="mod" id="s-m0" aria-labelledby="h-m0"></section>
+  <section class="mod" id="s-m1" aria-labelledby="h-m1"></section>
+  <section class="mod" id="s-m2" aria-labelledby="h-m2"></section>
+  <section class="mod" id="s-m3" aria-labelledby="h-m3"></section>
+  <section class="mod" id="s-m4" aria-labelledby="h-m4"></section>
+  <section class="mod" id="s-fuentes" aria-labelledby="h-fuentes"></section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p><b>Atlas Eléctrico de México</b> · Proyecto académico de TE1020 Análisis de Circuitos Eléctricos (Tec de Monterrey) con identidad visual de Quanta Solar. Las cifras provienen de documentos oficiales de CFE, SENER y el DOF citados con su página; cuando no hay dato documentado se indica «Dato no disponible».</p>
+  </div>
+</footer>
+
+<div id="tip" class="tip" role="tooltip" hidden></div>
+
+<script src="vendor/chart.umd.min.js"></script>
+<script src="vendor/leaflet.js"></script>
+<script src="js/data.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/m0.js"></script>
+<script src="js/m1.js"></script>
+<script src="js/m2.js"></script>
+<script src="js/m3.js"></script>
+<script src="js/m4.js"></script>
+<script src="js/fuentes.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
