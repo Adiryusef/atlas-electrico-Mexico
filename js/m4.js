@@ -131,7 +131,7 @@ window.M4 = (() => {
       <h1 id="h-m4">¿Sabías que?</h1>
       <p>20 hallazgos sobre el sistema eléctrico mexicano, cada uno con su cifra, una visualización y la fuente con página. Al final: la reforma energética de 2013 y sus cambios posteriores.</p>
     </div>
-    <div class="grid" style="margin-bottom:16px"><div class="card c12"><div class="filters"><span class="flab">Tema</span><div class="seg" id="h-f"></div><a class="btn ghost" href="#m4/reforma" style="text-decoration:none">Ir a la reforma energética ↓</a></div></div></div>
+    <div class="grid" style="margin-bottom:16px"><div class="card c12"><div class="filters"><span class="flab">Tema</span><div class="seg" id="h-f"></div><a class="btn ghost" href="#reforma" style="text-decoration:none">Ir a la reforma energética ↓</a></div></div></div>
     <div class="hf" id="h-grid"></div>
     <div id="reforma" style="scroll-margin-top:120px"></div>`;
     const grid = root.querySelector('#h-grid');

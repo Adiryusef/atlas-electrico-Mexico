@@ -13,9 +13,12 @@
     const tab = document.querySelector(`.tabs a[data-tab="${id}"]`);
     if (tab) tab.parentElement.scrollTo({ left: Math.max(0, tab.offsetLeft - 16), behavior: 'smooth' });
   }
+  // Anclas internas (solo #nombre, sin barras) y el módulo que las contiene
+  const ANCHORS = { reforma: 'm4', clasificador: 'm0', comparador: 'm0', reflexion: 'm0', ccvc: 'm1', distancias: 'm2', simulador: 'm2', sectores: 'm3', transformador: 'm3' };
   function route() {
     const h = (location.hash || '#m0').slice(1);
-    const [mod, anchor] = h.split('/');
+    const anchor = ANCHORS[h] ? h : null;
+    const mod = anchor ? ANCHORS[h] : h;
     show(mod);
     if (anchor) { const a = document.getElementById(anchor); if (a) setTimeout(() => a.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }
     else window.scrollTo({ top: 0 });
