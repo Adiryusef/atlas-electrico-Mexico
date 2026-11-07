@@ -10,6 +10,8 @@ window.M4 = (() => {
   const losses = (V) => M2.calc(300, V, 5, 1).pctLoss;
   const dist = (a, b) => UI.haversine([TX.centros[a].lat, TX.centros[a].lon], [TX.centros[b].lat, TX.centros[b].lon]);
 
+  const dl = Object.entries(DIV24.divs).map(([k, d]) => [k, d.per24 / d.ing24 * 100]).sort((a, b) => a[1] - b[1]); // pérdida total ÷ energía ingresada, 2024
+  const sd = Object.entries(DIV24.divs).map(([k, d]) => [k, d.saidi24]).sort((a, b) => a[1] - b[1]);
   const H = [
     /* ---------- Recursos ---------- */
     { cat: 'rec', q: '¿Qué porcentaje de la electricidad mexicana se genera con combustibles fósiles?', big: pct(100 - N.cleanPct[i23], 2), u: 'no limpia (2023)',
@@ -17,8 +19,8 @@ window.M4 = (() => {
       src: [N.src, { s: 'CALC' }],
       viz: (id) => chart(id, C => ({ type: 'doughnut', data: { labels: ['Fósil (recurso)', 'Nuclear', 'Renovable'], datasets: [{ data: [T23 - ren23 - g23('Nucleoeléctrica'), g23('Nucleoeléctrica'), ren23], backgroundColor: [C.fosil, C.nuclear, C.renovable], borderColor: C.surface, borderWidth: 2 }] }, options: { cutout: '60%', plugins: { tooltip: { callbacks: { label: x => ` ${x.label}: ${pct(x.raw / T23 * 100)}` } } } } })) },
     { cat: 'rec', q: '¿Cuánto CO₂e emite cada tecnología por kWh?', big: '820 vs 11', u: 'gCO₂e/kWh (carbón vs eólica)',
-      txt: `Medianas de ciclo de vida del IPCC: el carbón emite unas 75 veces más que la eólica por kWh. Es distinto de la emisión directa: CFE reporta ${fmt(GEN_CFE.co2.v, 1)} tCO₂/MWh (= ${fmt(GEN_CFE.co2.v * 1000)} g/kWh) para su parque en operación, y la guía CFE SPA00-63 da 56.1 kg CO₂/GJ para gas y 94.6 kg CO₂/GJ para carbón al quemarse.`,
-      src: [EMIS_LCA.src, GEN_CFE.co2.src, EMIS_FUEL.src],
+      txt: `Medianas de ciclo de vida del IPCC: el carbón emite unas 75 veces más que la eólica por kWh. Es distinto de la emisión directa: CFE reporta ${fmt(GEN_CFE.co2.v, 1)} tCO₂/MWh (= ${fmt(GEN_CFE.co2.v * 1000)} g/kWh) para su parque en operación; el factor de emisión del SEN en 2024 es ${fmt(FE_SEN.v, 3)} tCO₂e/MWh (= ${fmt(FE_SEN.v * 1000)} g/kWh, promedio de todo el sistema); y la guía CFE SPA00-63 da 56.1 kg CO₂/GJ para gas y 94.6 kg CO₂/GJ para carbón al quemarse.`,
+      src: [EMIS_LCA.src, GEN_CFE.co2.src, FE_SEN.src, EMIS_FUEL.src],
       viz: (id) => { const e = Object.entries(EMIS_LCA.v); chart(id, C => ({ type: 'bar', data: { labels: e.map(x => x[0]), datasets: [barDs({ data: e.map(x => x[1]), backgroundColor: e.map(x => /Carbón|Gas/.test(x[0]) ? C.fosil : /Nuclear/.test(x[0]) ? C.nuclear : C.renovable) })] }, options: { indexAxis: 'y', scales: { x: axis(C, { ticks: { color: C.ink2 } }), y: noGrid(C, { ticks: { color: C.ink2, font: { size: 10 } } }) }, plugins: { tooltip: { callbacks: { label: x => ` ${x.raw} gCO₂e/kWh` } } } } })); } },
     { cat: 'rec', q: '¿Por qué la energía nuclear es limpia, pero no renovable?', big: '12', u: 'gCO₂e/kWh en ciclo de vida',
       txt: 'Limpia es una categoría legal por emisiones: la LIE de 2014 y la Ley del Sector Eléctrico de 2025 incluyen la nucleoeléctrica. Renovable depende de que el recurso se regenere, y el uranio es un mineral finito. En 2024 CFE usó 130,343 TJ de uranio.',
@@ -70,8 +72,8 @@ window.M4 = (() => {
 
     /* ---------- Transmisión ---------- */
     { cat: 'tx', q: '¿Cuántos kilómetros tiene la red nacional de transmisión?', big: fmt(TX.kmByKv.total[2]), u: 'km (2023)',
-      txt: `Equivale a unas ${fmt(TX.kmByKv.total[2] / dist(7, 3))} veces la distancia en línea recta de Mexicali a Mérida (${fmt(dist(7, 3))} km, cálculo propio). El 44 % de la red opera en 115 kV y el 24 % en 400 kV.`,
-      src: [TX.kmByKv.src, { s: 'CALC' }],
+      txt: `Equivale a unas ${fmt(TX.kmByKv.total[2] / dist(7, 3))} veces la distancia en línea recta de Mexicali a Mérida (${fmt(dist(7, 3))} km, cálculo propio). El 44 % de la red opera en 115 kV y el 24 % en 400 kV. El PRODESEN 2024-2038 prevé ${fmt(TX.ampl.totalKmc)} km-c más de líneas de la RNT (${fmt(TX.ampl.kv['400 kV'], 1)} km-c en 400 kV).`,
+      src: [TX.kmByKv.src, TX.ampl.src, { s: 'CALC' }],
       viz: (id) => { const kv = Object.entries(TX.kmByKv.kv); chart(id, C => ({ type: 'bar', data: { labels: kv.map(k => k[0]), datasets: [barDs({ data: kv.map(k => k[1][2]), backgroundColor: kv.map(k => ['400 kV', '230 kV', '161 kV'].includes(k[0]) ? C.accent : C.renovable) })] }, options: { scales: { x: noGrid(C), y: axis(C, { ticks: { color: C.ink2, callback: v => fmt(v / 1000) + ' mil' } }) }, plugins: { tooltip: { callbacks: { label: x => ` ${fmt(x.raw)} km` } } } } })); } },
     { cat: 'tx', q: '¿Por qué se usan líneas de 400 kV?', big: '×' + fmt((400 / 115) ** 2, 1), u: 'menos pérdidas a 400 kV que a 115 kV',
       txt: `Para la misma potencia, la corriente es inversamente proporcional a la tensión (I = P / √3·V·cos φ) y las pérdidas crecen con I² (3·I²·R). Subir de 115 a 400 kV reduce la corriente ${fmt(400 / 115, 1)} veces y las pérdidas ${fmt((400 / 115) ** 2, 1)} veces, con la misma resistencia. México tiene ${fmt(TX.kmByKv.kv['400 kV'][2])} km de líneas de 400 kV.`,
@@ -107,8 +109,8 @@ window.M4 = (() => {
       src: [DIST.kmRGD.src, DIST.rgd.src],
       viz: (id) => chart(id, C => ({ type: 'bar', data: { labels: ['Transmisión (RNT)', 'Distribución MT', 'Distribución BT'], datasets: [barDs({ data: [TX.kmByKv.total[2], DIST.rgd.mt[2], DIST.rgd.bt[2]], backgroundColor: [C.accent, C.coral, C.renovable] })] }, options: { scales: { x: noGrid(C), y: axis(C, { ticks: { color: C.ink2, callback: v => fmt(v / 1000) + ' mil' } }) }, plugins: { tooltip: { callbacks: { label: x => ` ${fmt(x.raw)} km (2023)` } } } } })) },
     { cat: 'dist', q: '¿Qué porcentaje de la energía se pierde en la distribución?', big: pct(DIST.perdidasRGD2023.pct), u: 'de la energía recibida en media tensión (2023)',
-      txt: `Se perdieron ${fmt(DIST.perdidasRGD2023.gwh)} GWh en las RGD. Solo ${pct(DIST.perdidasRGD2023.tec, 2)} son pérdidas técnicas (calor por efecto Joule); ${pct(DIST.perdidasRGD2023.notec, 2)} son no técnicas: usos ilícitos y fallas de medición.`,
-      src: [DIST.perdidasRGD2023.src],
+      txt: `Se perdieron ${fmt(DIST.perdidasRGD2023.gwh)} GWh en las RGD. Solo ${pct(DIST.perdidasRGD2023.tec, 2)} son pérdidas técnicas (calor por efecto Joule); ${pct(DIST.perdidasRGD2023.notec, 2)} son no técnicas: usos ilícitos y fallas de medición. Por división (2024, cálculo propio con el PAMRGD) la pérdida total va de ${pct(dl[0][1], 1)} en ${dl[0][0]} a ${pct(dl[dl.length - 1][1], 1)} en ${dl[dl.length - 1][0]}.`,
+      src: [DIST.perdidasRGD2023.src, DIV24.src.bal, { s: 'CALC' }],
       viz: (id) => chart(id, C => ({ type: 'bar', data: { labels: ['Pérdidas 2023'], datasets: [barDs({ label: 'Técnicas', data: [DIST.perdidasRGD2023.tec], backgroundColor: C.accent, stack: 'p' }), barDs({ label: 'No técnicas', data: [DIST.perdidasRGD2023.notec], backgroundColor: C.fosil, stack: 'p', borderRadius: 0 })] }, options: { indexAxis: 'y', scales: { x: axis(C, { stacked: true, ticks: { color: C.ink2, callback: v => v + ' %' } }), y: noGrid(C, { stacked: true }) }, plugins: { tooltip: { callbacks: { label: x => ` ${x.dataset.label}: ${pct(x.raw, 2)}` } } } } })),
       legend: [['var(--accent)', 'Técnicas'], ['var(--fosil)', 'No técnicas']] },
     { cat: 'dist', q: '¿Cómo se reduce la tensión antes de llegar a una vivienda?', big: fmt(DIST.rgd.transf[2]), u: 'transformadores de media a baja tensión',
@@ -215,8 +217,8 @@ window.M4 = (() => {
         <h2>Resultados y controversias: tarifas, confiabilidad, inversión y acceso a la red</h2>
         <div class="grid" style="padding:0">
           <div class="c4" style="min-width:0"><h3>Ingreso medio por kWh (suministro básico)</h3><div class="chart sm"><canvas id="r5a" aria-label="Ingreso medio por kWh"></canvas></div><p class="note">Productos ÷ ventas, en pesos corrientes (sin ajustar por inflación). Es un promedio de todas las tarifas, con y sin subsidio. ${cite([DIST.sectores.src, { s: 'CALC' }])}</p></div>
-          <div class="c4" style="min-width:0"><h3>Confiabilidad: SAIDI de distribución</h3><div class="chart sm"><canvas id="r5b" aria-label="SAIDI"></canvas></div><p class="note">Minutos por usuario al año. ${cite(DIST.saidi.src)}</p></div>
-          <div class="c4" style="min-width:0"><h3>Inversión y acceso a la red</h3><div class="op">El programa de ampliación y modernización de las RGD prevé <b>34,866.91 millones de pesos</b> en 2024–2028. ${cite({ s: 'P24', p: '140–141' })}</div><div class="op">Acceso a la red: el CENACE debe garantizar acceso abierto y no discriminatorio (decreto de 2013). Las fuentes no traen un indicador de solicitudes de interconexión atendidas: «Dato no disponible». ${cite({ s: 'DOF13', p: '6' })}</div></div>
+          <div class="c4" style="min-width:0"><h3>Confiabilidad: SAIDI de distribución</h3><div class="chart sm"><canvas id="r5b" aria-label="SAIDI"></canvas></div><p class="note">Minutos por usuario al año. En 2024 el SAIDI por división iba de ${fmt(sd[0][1], 1)} min (${sd[0][0]}) a ${fmt(sd[sd.length - 1][1], 1)} min (${sd[sd.length - 1][0]}). ${cite([DIST.saidi.src, DIV24.src.conf])}</p></div>
+          <div class="c4" style="min-width:0"><h3>Inversión y acceso a la red</h3><div class="op">El programa de ampliación y modernización de las RGD prevé <b>34,866.91 millones de pesos</b> en 2024–2028 (PRODESEN 2024-2038). ${cite({ s: 'P24', p: '140–141' })}</div><div class="op">El PAMRGD 2025-2039, más reciente, prevé <b>${fmt(PAM_INV.total)} millones de pesos</b> en 2025–2029: ${fmt(PAM_INV.amp)} en ampliación, ${fmt(PAM_INV.mod)} en modernización, ${fmt(PAM_INV.rei)} en redes inteligentes y ${fmt(PAM_INV.gd)} en generación distribuida. ${cite(PAM_INV.src)}</div><div class="op">Acceso a la red: el CENACE debe garantizar acceso abierto y no discriminatorio (decreto de 2013). Las fuentes no traen un indicador de solicitudes de interconexión atendidas: «Dato no disponible». ${cite({ s: 'DOF13', p: '6' })}</div></div>
         </div>
         <div class="callout warn"><b>Controversias documentadas:</b> la reforma de 2021 a la LIE fue impugnada en tribunales; la reforma constitucional de 2022 no alcanzó la mayoría calificada (275 a favor, 223 en contra); y la reforma de 2024 cambió el criterio: la empresa pública debe prevalecer y el servicio debe darse «evitando el lucro». ${cite([{ s: 'SCJN21' }, { s: 'BLM22' }, { s: 'DOF24' }])}</div>
       </div>

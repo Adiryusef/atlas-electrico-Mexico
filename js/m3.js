@@ -1,9 +1,8 @@
 /* Módulo 3 · Distribución eléctrica */
 window.M3 = (() => {
-  const { fmt, pct, cite, term, chart, axis, noGrid, barDs, legendHTML, table, seg, colors, sum } = UI;
-  let map, divLayer, st = { color: 'saidi', div: null };
+  const { fmt, pct, cite, term, chart, axis, noGrid, barDs, legendHTML, table, seg, colors, sum, isDark } = UI;
+  let map, divLayer, st = { met: 'saidi24', div: null };
   const tr = { Vp: 13200, a: 60, S: 75, ph: '1' };
-  const SD = DIST.saidiDiv2023;
 
   function render(root) {
     const R = DIST.rgd, i = 2;
@@ -24,22 +23,28 @@ window.M3 = (() => {
 
       <div class="sec-title"><span class="num">3.1</span><h2>Mapa de divisiones de distribución</h2></div>
       <div class="card c8">
-        <div class="filters"><span class="flab">Colorear por</span><div class="seg" id="d-col"></div></div>
-        <div id="d-map" class="map" role="region" aria-label="Mapa de divisiones de distribución"></div>
-        <p class="note">Cada entidad se asigna a la división que abarca la mayoría de sus municipios según la CRE (Acuerdo A/058/2017, Anexo B). Las entidades con borde punteado se reparten entre varias divisiones. Es una aproximación: los límites reales de las divisiones siguen municipios, no estados (ver PRODESEN 2024-2038, Figura 6.1, p. 152).</p>
-        ${cite([{ s: 'CRE17' }, { s: 'P24', p: '152', t: 'Figura 6.1' }, { s: 'GEO' }])}
+        <div class="filters"><label class="flab" for="d-met">Colorear por</label><select id="d-met" class="sel" aria-label="Indicador para colorear el mapa"></select></div>
+        <div class="mapwrap"><div id="d-map" class="map" role="region" aria-label="Mapa de divisiones de distribución"></div></div>
+        <p class="note">Cada entidad se colorea con el valor de su división principal, según la CRE (Acuerdo A/058/2017, Anexo B). Las entidades con borde punteado se reparten entre varias divisiones. Es una aproximación: los límites reales de las divisiones siguen municipios, no estados.</p>
+        ${cite([{ s: 'CRE17' }, DIV24.src.infra, DIV24.src.conf, { s: 'GEO' }])}
       </div>
       <div class="card c4">
         <h2>División seleccionada</h2>
         <div id="d-info" class="stage-info" aria-live="polite"></div>
-        <p class="note">No se asignan indicadores nacionales a divisiones. El único indicador por división en las fuentes disponibles es el SAIDI de 2023; usuarios, kilómetros y pérdidas por división: «Dato no disponible».</p>
       </div>
       <div class="card c12">
-        <div class="card-h"><div><h2>SAIDI por división, 2023</h2><p class="sub">Minutos promedio sin servicio por usuario en el año, sin eventos externos. La línea punteada es el promedio nacional (${fmt(SD.nacional, 3)} min).</p></div></div>
-        <div class="chart lg"><canvas id="d-saidi" aria-label="SAIDI por división"></canvas></div>
-        ${legendHTML([['var(--fosil)', 'Arriba del promedio nacional'], ['var(--renovable)', 'Igual o abajo del promedio nacional']])}
-        ${table(['División', 'SAIDI 2023 (min)'], Object.entries(SD.v).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, UI.fmt(v, 3)]))}
-        ${cite(SD.src)}
+        <div class="card-h"><div><h2 id="d-rt">Indicador por división</h2><p class="sub" id="d-rs"></p></div></div>
+        <div class="chart lg"><canvas id="d-rank" aria-label="Indicador por división"></canvas></div>
+        <p class="note" id="d-rn"></p>
+        <div id="d-rtab"></div>
+        <p id="d-rc"></p>
+      </div>
+      <div class="card c12">
+        <div class="card-h"><div><h2>Pérdidas técnicas y no técnicas por división, 2024</h2><p class="sub">% de la energía ingresada a cada división. Las no técnicas incluyen robo, errores de medición y facturación.</p></div></div>
+        <div class="chart lg"><canvas id="d-loss" aria-label="Pérdidas técnicas y no técnicas por división"></canvas></div>
+        ${legendHTML([['var(--accent)', 'Técnicas'], ['var(--fosil)', 'No técnicas']])}
+        <p class="note">Los porcentajes técnicos y no técnicos son los que reporta CFE Distribución; su suma no coincide exactamente con pérdidas ÷ energía ingresada porque las bases de cálculo del documento no se detallan.</p>
+        ${cite(DIV24.src.per)}
       </div>
 
       <div class="sec-title"><span class="num">3.2</span><h2>Indicadores de la red de distribución</h2></div>
@@ -119,65 +124,103 @@ window.M3 = (() => {
       </div>
     </div>`;
 
-    seg(root.querySelector('#d-col'), [{ v: 'saidi', l: 'SAIDI 2023' }, { v: 'div', l: 'División' }], st.color, v => { st.color = v; styleMap(); });
     seg(root.querySelector('#d-ph'), [{ v: '1', l: 'Monofásico' }, { v: '3', l: 'Trifásico' }], tr.ph, v => { tr.ph = v; trDraw(root); });
     seg(root.querySelector('#d-secy'), DIST.sectores.years.map(y => ({ v: String(y), l: String(y) })), '2024', v => secChart(+v));
-    info(null); charts(); secChart(2024); trInit(root); initMap();
+    metInit(root); info(null); charts(); secChart(2024); trInit(root); initMap();
   }
 
   const slider = (k, label, min, max, step, v, u) => `<label for="d-${k}">${label}<span class="row"><input type="range" id="d-${k}r" min="${min}" max="${max}" step="${step}" value="${v}" aria-label="${label}"><input type="number" id="d-${k}" min="${min}" max="${max}" step="${step}" value="${v}"><span class="u">${u}</span></span></label>`;
 
-  /* escala secuencial (6 pasos coral) para SAIDI */
-  const vals = Object.values(SD.v), vmin = Math.min(...vals), vmax = Math.max(...vals);
-  const seqColor = (v) => { const C = colors(); const k = Math.min(5, Math.floor((v - vmin) / (vmax - vmin + 1e-9) * 6)); return C.seq[k]; };
-  const DIVS = Object.keys(SD.v);
-  const divPal = (C, d) => { const p = [C.accent, C.coral, C.renovable, C.magenta, C.fosil, C.mint]; return p[DIVS.indexOf(d) % p.length]; };
+  const DV = DIV24.divs, DIVS = Object.keys(DV);
+  /* indicadores por división (todos de DIV24; los derivados se marcan como cálculo propio) */
+  const loss = d => d.per24 / d.ing24 * 100;
+  const METS = {
+    saidi24: { l: 'SAIDI 2024 (min por usuario)', f: d => d.saidi24, u: 'min', dec: 2, src: DIV24.src.conf, note: 'Menor es mejor: minutos promedio sin servicio por usuario al año.', low: 'good' },
+    saidi23: { l: 'SAIDI 2023 (min por usuario)', f: d => d.saidi23, u: 'min', dec: 2, src: DIV24.src.conf, low: 'good' },
+    saifi24: { l: 'SAIFI 2024 (interrupciones por usuario)', f: d => d.saifi24, u: '', dec: 2, src: DIV24.src.conf, low: 'good' },
+    caidi24: { l: 'CAIDI 2024 (min por interrupción)', f: d => d.caidi24, u: 'min', dec: 1, src: DIV24.src.conf, note: 'Duración promedio de cada interrupción (CAIDI = SAIDI ÷ SAIFI).', low: 'good' },
+    loss24: { l: 'Pérdidas totales 2024 (% de la energía ingresada)', f: loss, u: '%', dec: 1, src: [DIV24.src.bal, { s: 'CALC' }], note: 'Cálculo propio: pérdida total ÷ energía ingresada, ambas de la Tabla V.3.', low: 'good' },
+    pnt24: { l: 'Pérdidas no técnicas 2024 (%)', f: d => d.pnt24, u: '%', dec: 2, src: DIV24.src.per, low: 'good' },
+    pt24: { l: 'Pérdidas técnicas 2024 (%)', f: d => d.pt24, u: '%', dec: 2, src: DIV24.src.per, low: 'good' },
+    serv: { l: 'Servicios (usuarios) 2024', f: d => d.servMiles * 1000, u: '', dec: 0, src: DIV24.src.infra },
+    ventas: { l: 'Ventas de energía 2024 (GWh)', f: d => d.ventasGWh, u: 'GWh', dec: 0, src: DIV24.src.infra },
+    kwhServ: { l: 'Ventas por servicio 2024 (kWh por servicio al año)', f: d => d.ventasGWh * 1e6 / (d.servMiles * 1000), u: 'kWh', dec: 0, src: [DIV24.src.infra, { s: 'CALC' }], note: 'Cálculo propio: ventas ÷ servicios. Refleja el peso de la industria y del clima en cada división.' },
+    kmMT: { l: 'Líneas de media tensión (km)', f: d => d.kmMT, u: 'km', dec: 0, src: DIV24.src.infra },
+    ss: { l: 'Capacidad de subestaciones de distribución (MVA)', f: d => d.ssMVA, u: 'MVA', dec: 0, src: DIV24.src.infra }
+  };
+  const nacOf = k => { const m = METS[k]; return m.f(DIV24.nac); };
+  const seqColor = (k, v) => { const C = colors(); const vs = DIVS.map(d => METS[k].f(DV[d])); const lo = Math.min(...vs), hi = Math.max(...vs); const i = Math.min(5, Math.floor((v - lo) / (hi - lo + 1e-9) * 6)); return C.seq[i]; };
+  const mfmt = (k, v) => { const m = METS[k]; return fmt(v, m.dec) + (m.u === '%' ? ' %' : m.u ? ' ' + m.u : ''); };
+
+  function metInit(root) {
+    const sel = root.querySelector('#d-met');
+    sel.innerHTML = Object.entries(METS).map(([k, m]) => `<option value="${k}">${m.l}</option>`).join('');
+    sel.value = st.met; sel.addEventListener('change', () => { st.met = sel.value; styleMap(); rank(); });
+  }
 
   function info(cve, name) {
     const box = document.getElementById('d-info');
-    if (!cve) { box.innerHTML = '<b>Selecciona una entidad en el mapa</b><br>Verás su división principal, las divisiones con las que se comparte y el SAIDI 2023 de cada una.'; return; }
-    const m = STATE_DIV[cve]; const all = [m.d, ...(m.shared || [])];
+    if (!cve) { box.innerHTML = '<b>Selecciona una entidad en el mapa</b><br>Verás su división principal, las divisiones con las que se comparte y los indicadores de cada una.'; return; }
+    const m = STATE_DIV[cve]; const all = [m.d, ...(m.shared || [])]; st.div = m.d;
+    const ks = ['serv', 'saidi24', 'loss24', 'pnt24'];
+    const row = (lab, f) => `<tr><th scope="row">${lab}</th>${ks.map(k => `<td>${mfmt(k, f(k))}</td>`).join('')}</tr>`;
     box.innerHTML = `<b>${name}</b><br>División principal: <b>${m.d}</b>${m.shared ? `<br><span class="note">También atendida por: ${m.shared.join(', ')}</span>` : ''}${m.note ? `<br><span class="note">${m.note}</span>` : ''}
-      <table class="data"><thead><tr><th>División</th><th>SAIDI 2023</th><th>vs nacional</th></tr></thead><tbody>${all.map(d => `<tr><th scope="row">${d}</th><td>${fmt(SD.v[d], 3)} min</td><td>${SD.v[d] > SD.nacional ? '+' : ''}${pct((SD.v[d] / SD.nacional - 1) * 100)}</td></tr>`).join('')}</tbody></table>
-      ${cite([SD.src, { s: 'CRE17' }])}`;
+      <div class="tblwrap"><table class="data"><thead><tr><th>División (2024)</th><th scope="col">Servicios</th><th scope="col">SAIDI</th><th scope="col">Pérdidas</th><th scope="col">No técn.</th></tr></thead><tbody>
+      ${all.map(d => row(d, k => METS[k].f(DV[d]))).join('')}${row('Nacional', k => nacOf(k))}</tbody></table></div>
+      ${cite([DIV24.src.infra, DIV24.src.conf, DIV24.src.per, { s: 'CRE17' }])}`;
+    styleMap(); rank();
   }
   async function initMap() {
-    map = UI.baseMap('d-map');
+    map = UI.baseMap('d-map', { google: true });
+    map.zoomControl.setPosition('bottomright');
     const s = await UI.geo('states');
     divLayer = L.geoJSON(s, {
       style: f => styleFor(f),
       onEachFeature: (f, l) => {
         const m = STATE_DIV[f.properties.CVE_ENT];
-        l.bindTooltip(`${f.properties.NOM_ENT}: ${m.d}${m.shared ? ' (compartida)' : ''} · SAIDI ${fmt(SD.v[m.d], 1)} min`, { sticky: true });
+        l.bindTooltip(() => `${f.properties.NOM_ENT}: ${m.d}${m.shared ? ' (compartida)' : ''} · ${mfmt(st.met, METS[st.met].f(DV[m.d]))}`, { sticky: true });
         l.on('click', () => info(f.properties.CVE_ENT, f.properties.NOM_ENT));
       }
     }).addTo(map);
-    map.fitBounds(divLayer.getBounds(), { padding: [8, 8] });
     const lg = L.control({ position: 'bottomleft' });
     lg.onAdd = () => { const d = L.DomUtil.create('div', 'map-legend'); d.id = 'd-leg'; return d; };
     lg.addTo(map); legend();
+    const bounds = await map.gmReady;
+    map.fitBounds(bounds, { padding: [10, 10] });
   }
   function styleFor(f) {
     const C = colors(); const m = STATE_DIV[f.properties.CVE_ENT];
-    const fill = st.color === 'saidi' ? seqColor(SD.v[m.d]) : divPal(C, m.d);
-    return { color: C.surface, weight: 1.2, dashArray: m.shared ? '4 3' : null, fillColor: fill, fillOpacity: st.color === 'saidi' ? .95 : .55 };
+    return { color: m.d === st.div ? '#1a73e8' : isDark() ? '#6b6890' : '#ffffff', weight: m.d === st.div ? 2.5 : 1.2, dashArray: m.shared ? '4 3' : null, fillColor: seqColor(st.met, METS[st.met].f(DV[m.d])), fillOpacity: .72 };
   }
-  function styleMap() { if (divLayer) { divLayer.setStyle(styleFor); legend(); } }
+  function styleMap() { if (map && map.refreshTheme) map.refreshTheme(); if (divLayer) { divLayer.setStyle(styleFor); legend(); } }
   function legend() {
-    const d = document.getElementById('d-leg'); if (!d) return; const C = colors();
-    if (st.color === 'saidi') {
-      const steps = [0, 1, 2, 3, 4, 5].map(k => [C.seq[k], vmin + (vmax - vmin) * k / 6, vmin + (vmax - vmin) * (k + 1) / 6]);
-      d.innerHTML = '<b>SAIDI 2023 (min)</b><br>' + steps.map(([c, a, b]) => `<i class="sq" style="background:${c}"></i>${fmt(a, 0)}–${fmt(b, 0)}`).join('<br>') + '<br><span class="note">Borde punteado: entidad compartida</span>';
-    } else d.innerHTML = '<b>División principal</b><br><span class="note">Pasa el cursor para ver el nombre. Los colores se repiten: la etiqueta identifica la división.</span>';
+    const d = document.getElementById('d-leg'); if (!d) return; const C = colors(); const k = st.met;
+    const vs = DIVS.map(x => METS[k].f(DV[x])), lo = Math.min(...vs), hi = Math.max(...vs);
+    const steps = [0, 1, 2, 3, 4, 5].map(i => [C.seq[i], lo + (hi - lo) * i / 6, lo + (hi - lo) * (i + 1) / 6]);
+    d.innerHTML = `<b>${METS[k].l.replace(/ \(.*$/, '')}</b><br>` + steps.map(([c, a, b]) => `<i class="sq" style="background:${c}"></i>${fmt(a, METS[k].dec > 1 ? 1 : METS[k].dec)}–${fmt(b, METS[k].dec > 1 ? 1 : METS[k].dec)}`).join('<br>') + '<br><span class="note">Borde punteado: entidad compartida</span>';
+  }
+  function rank() {
+    const k = st.met, m = METS[k]; const nac = nacOf(k);
+    const rows = DIVS.map(d => [d, m.f(DV[d])]).sort((a, b) => b[1] - a[1]);
+    document.getElementById('d-rt').textContent = m.l;
+    document.getElementById('d-rs').innerHTML = `La línea punteada es el valor nacional (${mfmt(k, nac)}). La división seleccionada se marca con borde azul.`;
+    document.getElementById('d-rn').innerHTML = (m.note ? m.note + ' ' : '') + `Fuente de los datos por división: PAMRGD 2025-2039.`;
+    document.getElementById('d-rc').innerHTML = cite(m.src);
+    document.getElementById('d-rtab').innerHTML = table(['División', m.l], rows.map(r => [r[0], mfmt(k, r[1])]));
+    chart('d-rank', C => ({
+      type: 'bar', data: { labels: rows.map(r => r[0]), datasets: [barDs({ data: rows.map(r => r[1]), backgroundColor: rows.map(r => m.low ? (r[1] > nac ? C.fosil : C.renovable) : C.accent), borderColor: rows.map(r => r[0] === st.div ? '#1a73e8' : 'transparent'), borderWidth: 2 })] },
+      options: { indexAxis: 'y', scales: { x: axis(C, { beginAtZero: true, ticks: { color: C.ink2, callback: v => fmt(v, v < 10 ? 1 : 0) } }), y: noGrid(C) },
+        plugins: { tooltip: { callbacks: { label: x => ` ${mfmt(k, x.raw)}${m.low ? (x.raw > nac ? ' · peor que el promedio nacional' : ' · mejor que el promedio nacional') : ''}` } } } },
+      plugins: [{ id: 'natl', afterDraw: (c) => { const x = c.scales.x.getPixelForValue(nac); const { top, bottom } = c.chartArea; const g = c.ctx; g.save(); g.strokeStyle = C.ink; g.setLineDash([5, 4]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, top); g.lineTo(x, bottom); g.stroke(); g.restore(); } }]
+    }));
   }
 
   function charts() {
-    const rows = Object.entries(SD.v).sort((a, b) => b[1] - a[1]);
-    chart('d-saidi', C => ({
-      type: 'bar', data: { labels: rows.map(r => r[0]), datasets: [barDs({ data: rows.map(r => r[1]), backgroundColor: rows.map(r => r[1] > SD.nacional ? C.fosil : C.renovable) })] },
-      options: { indexAxis: 'y', scales: { x: axis(C, { title: { display: true, text: 'minutos por usuario', color: C.ink2 } }), y: noGrid(C) },
-        plugins: { tooltip: { callbacks: { label: x => ` ${fmt(x.raw, 3)} min (${x.raw > SD.nacional ? 'arriba' : 'abajo'} del promedio nacional)` } } } },
-      plugins: [{ id: 'natl', afterDraw: (c) => { const x = c.scales.x.getPixelForValue(SD.nacional); const { top, bottom } = c.chartArea; const g = c.ctx; g.save(); g.strokeStyle = C.ink; g.setLineDash([5, 4]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, top); g.lineTo(x, bottom); g.stroke(); g.setLineDash([]); g.fillStyle = C.ink; g.font = '600 11px DM Sans'; g.fillText('Nacional ' + fmt(SD.nacional, 1), x + 4, top + 10); g.restore(); } }]
+    rank();
+    const lr = DIVS.map(d => [d, DV[d].pt24, DV[d].pnt24]).sort((a, b) => (b[1] + b[2]) - (a[1] + a[2]));
+    chart('d-loss', C => ({
+      type: 'bar', data: { labels: lr.map(r => r[0]), datasets: [barDs({ label: 'Técnicas', data: lr.map(r => r[1]), backgroundColor: C.accent, stack: 'p', borderRadius: 0 }), barDs({ label: 'No técnicas', data: lr.map(r => r[2]), backgroundColor: C.fosil, stack: 'p' })] },
+      options: { indexAxis: 'y', scales: { x: axis(C, { stacked: true, ticks: { color: C.ink2, callback: v => v + ' %' } }), y: noGrid(C, { stacked: true }) }, plugins: { tooltip: { mode: 'index', intersect: false, callbacks: { label: x => ` ${x.dataset.label}: ${fmt(x.raw, 2)} %` } } } }
     }));
     chart('d-perd', C => ({
       type: 'line', data: { labels: DIST.perdidas.years, datasets: [
@@ -246,6 +289,6 @@ window.M3 = (() => {
   }
 
   function onShow() { if (map) setTimeout(() => map.invalidateSize(), 50); }
-  function onTheme() { styleMap(); }
+  function onTheme() { styleMap(); rank(); }
   return { render, onShow, onTheme };
 })();

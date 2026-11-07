@@ -118,12 +118,112 @@ const UI = (() => {
     if (!geoCache[name]) geoCache[name] = fetch(`data/${name}.json`).then(r => r.json());
     return geoCache[name];
   }
+  /* Mapa base simple (sin mosaicos): solo límites estatales. Lo usan los módulos que aún no pasan al estilo Google. */
   function baseMap(id, opts = {}) {
+    if (opts.google) return googleMap(id, opts);
     const m = L.map(id, Object.assign({ zoomSnap: 0.25, minZoom: 3.5, maxZoom: 10, attributionControl: true, scrollWheelZoom: false }, opts));
     m.setView([23.6, -102.3], 4.75);
     m.attributionControl.setPrefix(false);
     m.attributionControl.addAttribution('Límites: CONABIO/INEGI 2022');
     return m;
+  }
+
+  /* ---- Mapa con estilo Google Maps ----
+     Capa 1 (siempre): fondo vectorial propio con la paleta de Google (agua azul, tierra gris cálido, límites punteados,
+     nombres de estados, países y mares) que se ve aunque no haya internet.
+     Capa 2: mosaicos abiertos CARTO Voyager (claro) o Dark Matter (oscuro); en «Satélite», imágenes Esri con etiquetas.
+     Si los mosaicos no cargan, queda visible solo la capa 1. Google no permite usar sus mosaicos sin llave de API y facturación. */
+  const GM = {
+    light: { water: '#aadaff', land: '#f2efe9', other: '#e8e6df', line: '#c4c0b5', state: '#bdb8ab', lab: '#7a7468', sea: '#5b8db8',
+      tiles: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' },
+    dark: { water: '#0f1b2e', land: '#2a2940', other: '#222236', line: '#46446a', state: '#4d4b72', lab: '#a39fc4', sea: '#5f7ea8',
+      tiles: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' }
+  };
+  const SAT = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  const SAT_LAB = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
+  const isDark = () => { const t = document.documentElement.getAttribute('data-theme'); return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
+  const SEA_LABELS = [['Océano Pacífico', 17.5, -110.5], ['Golfo de México', 25.2, -92.8], ['Golfo de California', 26.2, -110.0], ['Mar Caribe', 17.3, -83.3]];
+  const ST_SHORT = { 'Coahuila de Zaragoza': 'Coahuila', 'Veracruz de Ignacio de la Llave': 'Veracruz', 'Michoacán de Ocampo': 'Michoacán', 'Ciudad de México': 'CDMX', 'México': 'Edo. Méx.', 'Baja California Sur': 'Baja California Sur', 'Quintana Roo': 'Q. Roo' };
+  const COUNTRY_LABELS = [['Estados Unidos', 33.2, -104.5], ['Guatemala', 15.5, -90.6], ['Belice', 17.2, -88.7], ['Cuba', 21.9, -79.5]];
+
+  function googleMap(id, opts) {
+    const m = L.map(id, Object.assign({ zoomSnap: 0.25, minZoom: 4, maxZoom: 13, attributionControl: true, scrollWheelZoom: false, zoomControl: true }, opts));
+    m.setView([23.6, -102.3], 4.75);
+    m.attributionControl.setPrefix(false);
+    m.getContainer().classList.add('gm');
+    m.createPane('vec').style.zIndex = 150;
+    m.createPane('fbl').style.zIndex = 450; m.getPane('fbl').style.pointerEvents = 'none';
+    const st = { mode: 'mapa', loaded: 0, failed: 0, fb: false };
+    const tiles = L.tileLayer(GM.light.tiles, { maxZoom: 13, subdomains: 'abcd', attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>' });
+    const sat = L.tileLayer(SAT, { maxZoom: 13, attribution: 'Imágenes © Esri, Maxar, Earthstar Geographics' });
+    const satLab = L.tileLayer(SAT_LAB, { maxZoom: 13 });
+    const vec = { countries: null, states: null, labels: L.layerGroup() };
+    let note;
+    const C = () => (isDark() ? GM.dark : GM.light);
+
+    function paint() {
+      const c = C(), dark = isDark();
+      m.getContainer().style.background = st.mode === 'sat' ? '#0b1a2a' : c.water;
+      m.getContainer().classList.toggle('gm-dark', dark);
+      tiles.setUrl(c.tiles);
+      if (vec.countries) vec.countries.setStyle({ fillColor: c.other, color: c.other, weight: 1.2, fillOpacity: 1 });
+      if (vec.states) vec.states.setStyle({ fillColor: c.land, color: c.state, weight: 0.9, dashArray: '3 3', fillOpacity: 1 });
+      vec.labels.eachLayer(l => { const e = l.getElement && l.getElement(); if (e) e.classList.toggle('gm-lab-dark', dark); });
+    }
+    function setFallback(on) {
+      st.fb = on;
+      if (on) { vec.labels.addTo(m); } else { m.removeLayer(vec.labels); }
+      if (note) note.getContainer().style.display = on && st.mode === 'mapa' ? '' : 'none';
+    }
+    tiles.on('tileload', () => { st.loaded++; if (st.fb) setFallback(false); });
+    tiles.on('tileerror', () => { st.failed++; if (!st.loaded && !st.fb && st.mode === 'mapa') setFallback(true); });
+
+    function setMode(mode) {
+      st.mode = mode;
+      [tiles, sat, satLab].forEach(l => { if (m.hasLayer(l)) m.removeLayer(l); });
+      if (mode === 'sat') { sat.addTo(m); satLab.addTo(m); if (st.fb) setFallback(false); }
+      else { tiles.addTo(m); if (!st.loaded && st.failed) setFallback(true); }
+      paint();
+      ctl.getContainer().querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === mode));
+    }
+    const ctl = L.control({ position: 'topright' });
+    ctl.onAdd = () => {
+      const d = L.DomUtil.create('div', 'gm-switch leaflet-bar');
+      d.innerHTML = '<button type="button" data-mode="mapa" aria-pressed="true">Mapa</button><button type="button" data-mode="sat" aria-pressed="false">Satélite</button>';
+      L.DomEvent.disableClickPropagation(d);
+      d.addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.mode); });
+      return d;
+    };
+    ctl.addTo(m);
+    const nc = L.control({ position: 'topright' });
+    nc.onAdd = () => { const d = L.DomUtil.create('div', 'gm-note'); d.textContent = 'Mapa simplificado: sin conexión a mosaicos'; d.style.display = 'none'; return d; };
+    nc.addTo(m); note = nc;
+    tiles.addTo(m);
+
+    m.gmReady = Promise.all([geo('context'), geo('states')]).then(([ctx, sts]) => {
+      const c = C();
+      vec.countries = L.geoJSON(ctx, { pane: 'vec', interactive: false, style: () => ({ fillColor: c.other, color: c.other, weight: 1.2, fillOpacity: 1 }) }).addTo(m);
+      vec.states = L.geoJSON(sts, { pane: 'vec', interactive: false, style: () => ({ fillColor: c.land, color: c.state, weight: 0.9, dashArray: '3 3', fillOpacity: 1 }) }).addTo(m);
+      const lab = (txt, ll, cls) => L.marker(ll, { pane: 'fbl', interactive: false, keyboard: false, icon: L.divIcon({ className: 'gm-lab ' + cls, html: `<span>${txt}</span>`, iconSize: [0, 0] }) });
+      SEA_LABELS.forEach(([t, la, lo]) => vec.labels.addLayer(lab(t, [la, lo], 'sea')));
+      COUNTRY_LABELS.forEach(([t, la, lo]) => vec.labels.addLayer(lab(t, [la, lo], 'cty')));
+      vec.states.eachLayer(l => { const n = l.feature.properties.NOM_ENT; vec.labels.addLayer(lab(ST_SHORT[n] || n, l.getBounds().getCenter(), 'st')); });
+      if (st.fb) vec.labels.addTo(m);
+      paint();
+      m.gmBounds = vec.states.getBounds();
+      return m.gmBounds;
+    });
+    m.refreshTheme = paint;
+    return m;
+  }
+
+  /* Marcador tipo «pin» de Google Maps, escalado por categoría de capacidad */
+  function pinIcon(color, size = 26) {
+    const w = size, h = Math.round(size * 1.35);
+    return L.divIcon({
+      className: 'gm-pin', iconSize: [w, h], iconAnchor: [w / 2, h - 1], popupAnchor: [0, -h + 6], tooltipAnchor: [w / 2 - 2, -h / 2],
+      html: `<svg viewBox="0 0 24 32" width="${w}" height="${h}" aria-hidden="true"><path d="M12 .8C5.8.8.8 5.7.8 11.8c0 8.2 11.2 19.4 11.2 19.4s11.2-11.2 11.2-19.4C23.2 5.7 18.2.8 12 .8z" fill="${color}" stroke="rgba(0,0,0,.35)" stroke-width="1"/><circle cx="12" cy="11.8" r="4.2" fill="#fff"/></svg>`
+    });
   }
   const haversine = (a, b) => {
     const R = 6371, r = Math.PI / 180, dLa = (b[0] - a[0]) * r, dLo = (b[1] - a[1]) * r;
@@ -132,5 +232,5 @@ const UI = (() => {
   };
 
   const logTick = (f) => (v) => { const m = v / 10 ** Math.floor(Math.log10(v)); return [1, 2, 5].includes(Math.round(m * 100) / 100) ? f(v) : ''; };
-  return { logTick, fmt, pct, css, esc, el, sum, cite, srcText, term, initTips, colors, famColor, chart, redrawAll, axis, noGrid, barDs, legendHTML, table, seg, geo, baseMap, haversine };
+  return { logTick, fmt, pct, css, esc, el, sum, cite, srcText, term, initTips, colors, famColor, chart, redrawAll, axis, noGrid, barDs, legendHTML, table, seg, geo, baseMap, pinIcon, isDark, haversine };
 })();

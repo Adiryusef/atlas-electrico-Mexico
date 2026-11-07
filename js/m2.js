@@ -24,7 +24,7 @@ window.M2 = (() => {
       <div class="sec-title"><span class="num">2.1</span><h2>Mapa de los sistemas eléctricos</h2></div>
       <div class="card c8">
         <div class="filters"><span class="flab">Sistema</span><div class="seg" id="t-sys"></div></div>
-        <div id="t-map" class="map" role="region" aria-label="Mapa de sistemas interconectados"></div>
+        <div class="mapwrap"><div id="t-map" class="map" role="region" aria-label="Mapa de sistemas interconectados"></div></div>
         <p class="note">Los polígonos son una representación aproximada con límites estatales y municipales (INEGI/CONABIO): el SIBC con el estado de Baja California, el SIMUL con el municipio de Mulegé y el SIBCS con el resto de Baja California Sur. Los límites eléctricos reales no coinciden exactamente (ver Figura A1.1). No se dibujan trayectorias de líneas porque las fuentes no traen su geometría.</p>
         ${cite([{ s: 'P24', p: '155', t: 'Figura A1.1' }, { s: 'GEO' }])}
       </div>
@@ -65,6 +65,19 @@ window.M2 = (() => {
         <div class="chart sm"><canvas id="t-ie" aria-label="Importación y exportación"></canvas></div>
         ${legendHTML([['var(--accent)', 'Importación (GWh)'], ['var(--coral)', 'Exportación (GWh)']])}
         ${cite(TX.impExp.src)}
+      </div>
+
+      <div class="card c12">
+        <div class="card-h"><div><h2>Ampliación planeada de la RNT</h2><p class="sub">Proyectos instruidos por SENER a CFE Transmisión (PAMRNT 2024-2038)</p></div></div>
+        <div class="grid" style="padding:0">
+          <div class="c5" style="min-width:0"><div class="chart sm"><canvas id="t-am" aria-label="Ampliación planeada por nivel de tensión"></canvas></div></div>
+          <div class="c7" style="min-width:0">
+            <p><b>${fmt(TX.ampl.totalKmc)} km-c</b> de líneas nuevas. La mayor infraestructura estará en ${TX.ampl.estados.slice(0, -1).join(', ')} y ${TX.ampl.estados.slice(-1)}.</p>
+            <p>Años con más adiciones: <b>2025</b> (${fmt(TX.ampl.year[2025], 1)} km-c), <b>2030</b> (${fmt(TX.ampl.year[2030], 1)} km) y <b>2026</b> (${fmt(TX.ampl.year[2026])} km). Los proyectos integrarán además ${fmt(TX.ampl.rgdMT, 1)} km-c de red de media tensión de las RGD del MEM.</p>
+            <div class="callout warn"><b>Nota:</b> la suma por nivel de tensión (${fmt(Object.values(TX.ampl.kv).reduce((a, b) => a + b, 0), 1)} km-c) no coincide con el total del texto (${fmt(TX.ampl.totalKmc)} km-c); el documento no explica la diferencia. El detalle por entidad (Fig. 5.2) y por año (Fig. 5.3) está en imágenes y no se reproduce aquí. «km-c» = kilómetros-circuito.</div>
+          </div>
+        </div>
+        ${cite(TX.ampl.src)}
       </div>
 
       <div class="sec-title" id="distancias"><span class="num">2.3</span><h2>Distancias entre regiones</h2></div>
@@ -149,23 +162,28 @@ window.M2 = (() => {
   }
   function sysColor(C, s) { return { SIN: C.accent, SIBC: C.magenta, SIBCS: C.renovable, SIMUL: C.coral }[s]; }
   async function initMap() {
-    map = UI.baseMap('t-map');
-    const g = await UI.geo('systems'); const states = await UI.geo('states'); const C = colors();
-    const stL = L.geoJSON(states, { style: () => ({ color: C.line, weight: .6, fill: false }), interactive: false }).addTo(map);
-    map.fitBounds(stL.getBounds(), { padding: [8, 8] });
+    map = UI.baseMap('t-map', { google: true });
+    map.zoomControl.setPosition('bottomright');
+    const g = await UI.geo('systems'); const C = colors();
     sysLayer = L.geoJSON(g, {
-      style: f => ({ color: sysColor(C, f.properties.SYS), weight: 2, fillColor: sysColor(C, f.properties.SYS), fillOpacity: .22 }),
+      style: f => ({ color: sysColor(C, f.properties.SYS), weight: 2, fillColor: sysColor(C, f.properties.SYS), fillOpacity: .28 }),
       onEachFeature: (f, l) => { l.bindTooltip(SYSTEMS[f.properties.SYS].name, { sticky: true }); l.on('click', () => { st.sys = f.properties.SYS; document.querySelectorAll('#t-sys button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === st.sys)); styleSys(); sysInfo(st.sys); }); }
     }).addTo(map);
     ctrLayer = L.layerGroup().addTo(map);
-    TX.centros.forEach(c => {
-      L.circleMarker([c.lat, c.lon], { radius: 6, color: '#1B1236', weight: 2, fillColor: '#FFF6EF', fillOpacity: 1 })
-        .bindPopup(`<h4>${c.n}</h4><dl><dt>Sede</dt><dd>${c.c}</dd><dt>Sistema</dt><dd>${SYSTEMS[c.sys].short}</dd></dl><p class="note">Ubicación aproximada: punto interior del municipio. Fuente: ${UI.srcText({ s: 'P24', p: '155' })}</p>`)
-        .bindTooltip(c.n).addTo(ctrLayer);
-    });
+    drawCentros();
     const lg = L.control({ position: 'bottomleft' });
-    lg.onAdd = () => { const d = L.DomUtil.create('div', 'map-legend'); d.innerHTML = `<b>Sistemas</b><br>${['SIN', 'SIBC', 'SIBCS', 'SIMUL'].map(s => `<i class="sq" style="background:${sysColor(colors(), s)}"></i>${s}`).join('<br>')}<br><i style="background:#FFF6EF;border:2px solid #1B1236"></i>Centro de control`; return d; };
+    lg.onAdd = () => { const d = L.DomUtil.create('div', 'map-legend'); d.innerHTML = `<b>Sistemas</b><br>${['SIN', 'SIBC', 'SIBCS', 'SIMUL'].map(s => `<i class="sq" style="background:${sysColor(colors(), s)}"></i>${s}`).join('<br>')}<br><span class="note">Pin = sede de un centro de control</span>`; return d; };
     lg.addTo(map);
+    const bounds = await map.gmReady;
+    map.fitBounds(bounds, { padding: [10, 10] });
+  }
+  function drawCentros() {
+    if (!ctrLayer) return; ctrLayer.clearLayers(); const C = colors();
+    TX.centros.forEach(c => {
+      L.marker([c.lat, c.lon], { icon: UI.pinIcon(sysColor(C, c.sys), 28), title: c.n, riseOnHover: true })
+        .bindPopup(`<h4>${c.n}</h4><dl><dt>Sede</dt><dd>${c.c}</dd><dt>Sistema</dt><dd>${SYSTEMS[c.sys].short}</dd></dl><p class="note">Ubicación aproximada: punto interior del municipio. Fuente: ${UI.srcText({ s: 'P24', p: '155' })}</p>`)
+        .bindTooltip(c.n, { direction: 'right', offset: [8, -6] }).addTo(ctrLayer);
+    });
   }
   function styleSys(noFly) {
     if (!sysLayer) return; const C = colors();
@@ -191,6 +209,10 @@ window.M2 = (() => {
       type: 'bar', data: { labels: TX.consumo.years, datasets: [barDs({ data: TX.consumo.sys[s], backgroundColor: sysColor(C, s) })] },
       options: { scales: { x: noGrid(C), y: axis(C, { beginAtZero: true, ticks: { color: C.ink2, maxTicksLimit: 4, callback: v => fmt(v) } }) }, plugins: { tooltip: { callbacks: { label: x => ` ${fmt(x.raw)} GWh` } } } }
     })));
+    chart('t-am', C => ({
+      type: 'bar', data: { labels: Object.keys(TX.ampl.kv), datasets: [barDs({ data: Object.values(TX.ampl.kv), backgroundColor: [C.accent, C.magenta, C.coral] })] },
+      options: { scales: { x: noGrid(C), y: axis(C, { beginAtZero: true, ticks: { color: C.ink2, callback: v => fmt(v) }, title: { display: true, text: 'km-c', color: C.ink2 } }) }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: x => ` ${fmt(x.parsed.y, 1)} km-c` } } } }
+    }));
     chart('t-ie', C => ({
       type: 'bar', data: { labels: TX.impExp.years, datasets: [barDs({ label: 'Importación', data: TX.impExp.imp, backgroundColor: C.accent }), barDs({ label: 'Exportación', data: TX.impExp.exp, backgroundColor: C.coral })] },
       options: { scales: { x: noGrid(C), y: axis(C, { ticks: { color: C.ink2, callback: v => fmt(v) }, title: { display: true, text: 'GWh', color: C.ink2 } }) }, plugins: { tooltip: { mode: 'index', intersect: false, callbacks: { label: x => ` ${x.dataset.label}: ${fmt(x.raw)} GWh` } } } }
@@ -237,6 +259,6 @@ window.M2 = (() => {
   }
 
   function onShow() { if (map) setTimeout(() => map.invalidateSize(), 50); }
-  function onTheme() { if (sysLayer) styleSys(true); }
+  function onTheme() { if (map && map.refreshTheme) map.refreshTheme(); if (sysLayer) styleSys(true); drawCentros(); }
   return { render, onShow, onTheme, calc };
 })();

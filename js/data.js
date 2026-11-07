@@ -7,7 +7,6 @@
 const SOURCES = {
   IA22:  { short: 'CFE · Informe Anual 2022', inst: 'CFE', doc: 'Informe Anual 2022', year: 2023, note: 'Publicado el 27 de abril de 2023' },
   IA24:  { short: 'CFE · Informe Anual 2024', inst: 'CFE', doc: 'Informe Anual 2024', year: 2025, note: 'Versión del 7 de julio de 2025' },
-  DIST23:{ short: 'CFE Distribución · Informe 2023', inst: 'CFE Distribución', doc: 'Informe Público Anual 2023', year: 2024 },
   P23:   { short: 'SENER · PRODESEN 2023-2037', inst: 'SENER', doc: 'PRODESEN 2023-2037, cap. 4', year: 2023 },
   P24:   { short: 'SENER · PRODESEN 2024-2038', inst: 'SENER', doc: 'PRODESEN 2024-2038', year: 2024 },
   SPA:   { short: 'CFE · Guía SPA00-63 (2016)', inst: 'CFE', doc: 'Guía SPA00-63: factor de emisión de CO₂e del SEN', year: 2016 },
@@ -24,8 +23,47 @@ const SOURCES = {
   BLM22: { short: 'Bloomberg Línea (2022)', inst: 'Bloomberg Línea', doc: '“Congreso mexicano desecha reforma eléctrica” (18/04/2022)', year: 2022, url: 'https://www.bloomberglinea.com/2022/04/18/congreso-mexicano-desecha-reforma-electrica-de-amlo-por-mayoria/' },
   QUAD14:{ short: 'Quadratín (2014)', inst: 'Quadratín', doc: '“Nacen centros de Control Energético y del Gas Natural” (28/08/2014)', year: 2014, url: 'https://mexico.quadratin.com.mx/Nacen-centros-de-Control-Energetico-y-del-Gas-Natural/' },
   SCJN21:{ short: 'SCJN · Síntesis DOF 09/03/2021', inst: 'SCJN', doc: 'Síntesis del DOF, edición vespertina del 09/03/2021', year: 2021, url: 'https://www.supremacorte.gob.mx/sites/default/files/sintesis_dof_gocdmx/documento/2021-03/DOF%2009032021%20S%C3%8DNTESIS%20VESPERTINA.pdf' },
+  SEM26: { short: 'SEMARNAT · Aviso RENE 2026', inst: 'SEMARNAT', doc: 'Aviso a los establecimientos sujetos a reporte en el RENE: factor de emisión del SEN 2024 (29/05/2026)', year: 2026 },
+  CEN26: { short: 'CENACE · Generación liquidada sep. 2026', inst: 'CENACE', doc: 'Estadística de la energía generada liquidada (MWh), intermitente y firme, por tipo de tecnología, SEN, septiembre de 2026, liquidación original L0', year: 2026, note: 'Archivo del Sistema de Información del Mercado (área pública), creado el 14/oct/2026; 13 págs.' },
+  PAM25: { short: 'CFE Distribución · PAMRGD 2025-2039', inst: 'CFE Distribución', doc: 'Programa de Ampliación y Modernización de las Redes Generales de Distribución que no correspondan al MEM 2025-2039', year: 2025, note: 'Febrero de 2025; datos al cierre de 2024' },
   CALC:  { short: 'Cálculo propio', inst: 'Atlas', doc: 'Cálculo propio a partir de las cifras citadas', year: 2026 }
 };
+
+/* CFE Distribución · datos por división (16 divisiones), cierre de 2024 con comparación 2023.
+   Fuente: PAMRGD 2025-2039. Infraestructura: Tabla III.1 (pp. 8-9); confiabilidad: Tabla V.1 (p. 21); balance de energía:
+   Tabla V.3 (pp. 27-28); pérdidas: Tabla V.5 (p. 30). Unidades: ssMVA y redMVA en MVA; kmMT = km de líneas de media tensión;
+   servMiles = miles de servicios; ventasGWh; saidi y caidi en minutos, saifi en interrupciones por usuario;
+   ing, ent, per = TWh (energía ingresada, entregada y pérdida total); pt, pnt = porcentaje de pérdidas técnicas y no técnicas. */
+const DIV24 = {
+  src: { infra: { s: 'PAM25', p: '8–9', t: 'Tabla III.1' }, conf: { s: 'PAM25', p: '21', t: 'Tabla V.1' }, bal: { s: 'PAM25', p: '27–28', t: 'Tabla V.3' }, per: { s: 'PAM25', p: '30', t: 'Tabla V.5' } },
+  divs: {
+    'Baja California': { ssMVA: 5541, circMT: 747, kmMT: 21731, redMVA: 5191, servMiles: 2081, ventasGWh: 19137, saidi23: 19.77, saidi24: 19.38, saifi23: 0.53, saifi24: 0.53, caidi23: 37.12, caidi24: 36.94, ing23: 16.715, ing24: 17.535, ent23: 15.624, ent24: 16.373, per23: 1.091, per24: 1.162, pt23: 3.82, pt24: 3.72, pnt23: 3.02, pnt24: 3.22 },
+    'Noroeste': { ssMVA: 7002, circMT: 1132, kmMT: 42862, redMVA: 6731, servMiles: 2309, ventasGWh: 24155, saidi23: 16.27, saidi24: 15.57, saifi23: 0.39, saifi24: 0.38, caidi23: 41.73, caidi24: 41.25, ing23: 21.462, ing24: 21.913, ent23: 19.28, ent24: 19.78, per23: 2.183, per24: 2.133, pt23: 4.3, pt24: 4.25, pnt23: 6.19, pnt24: 5.8 },
+    'Norte': { ssMVA: 7115, circMT: 986, kmMT: 41284, redMVA: 2694, servMiles: 2442, ventasGWh: 25190, saidi23: 16.23, saidi24: 16.11, saifi23: 0.38, saifi24: 0.38, caidi23: 42.3, caidi24: 42.17, ing23: 24.147, ing24: 24.841, ent23: 20.248, ent24: 20.993, per23: 3.899, per24: 3.848, pt23: 3.97, pt24: 3.88, pnt23: 12.49, pnt24: 11.93 },
+    'Golfo Norte': { ssMVA: 10628, circMT: 1594, kmMT: 47997, redMVA: 6709, servMiles: 3787, ventasGWh: 45656, saidi23: 17.44, saidi24: 17.18, saifi23: 0.35, saifi24: 0.35, caidi23: 49.76, caidi24: 49.29, ing23: 36.833, ing24: 38.01, ent23: 30.956, ent24: 31.607, per23: 5.877, per24: 6.403, pt23: 3.25, pt24: 3.15, pnt23: 12.99, pnt24: 13.97 },
+    'Centro Occidente': { ssMVA: 2376, circMT: 760, kmMT: 33379, redMVA: 2448, servMiles: 2637, ventasGWh: 11468, saidi23: 15.05, saidi24: 13.54, saifi23: 0.3, saifi24: 0.27, caidi23: 50.77, caidi24: 50.2, ing23: 8.09, ing24: 8.082, ent23: 7.445, ent24: 7.469, per23: 0.645, per24: 0.613, pt23: 5.37, pt24: 5.36, pnt23: 2.94, pnt24: 2.57 },
+    'Centro Sur': { ssMVA: 3487, circMT: 582, kmMT: 39442, redMVA: 2939, servMiles: 3259, ventasGWh: 9711, saidi23: 16.64, saidi24: 16.3, saifi23: 0.43, saifi24: 0.42, caidi23: 38.84, caidi24: 38.84, ing23: 9.217, ing24: 9.331, ent23: 8.28, ent24: 8.424, per23: 0.937, per24: 0.907, pt23: 6.43, pt24: 6.33, pnt23: 4.08, pnt24: 3.72 },
+    'Oriente': { ssMVA: 4094, circMT: 703, kmMT: 45877, redMVA: 2902, servMiles: 3344, ventasGWh: 15025, saidi23: 14.92, saidi24: 16.85, saifi23: 0.21, saifi24: 0.23, caidi23: 70.08, caidi24: 71.97, ing23: 12.361, ing24: 12.993, ent23: 9.9, ent24: 10.367, per23: 2.46, per24: 2.626, pt23: 6.36, pt24: 6.18, pnt23: 13.83, pnt24: 14.33 },
+    'Sureste': { ssMVA: 4287, circMT: 820, kmMT: 66654, redMVA: 3952, servMiles: 4145, ventasGWh: 11673, saidi23: 36.33, saidi24: 30.68, saifi23: 0.63, saifi24: 0.55, caidi23: 57.48, caidi24: 55.76, ing23: 14.564, ing24: 15.246, ent23: 12.342, ent24: 13.049, per23: 2.222, per24: 2.197, pt23: 7.99, pt24: 8.16, pnt23: 7.6, pnt24: 6.59 },
+    'Valle de México Norte': { ssMVA: 4650, circMT: 513, kmMT: 10540, redMVA: 3408, servMiles: 3141, ventasGWh: 12980, saidi23: 18.17, saidi24: 16.2, saifi23: 0.49, saifi24: 0.5, caidi23: 37.01, caidi24: 32.23, ing23: 14.955, ing24: 15.281, ent23: 12.563, ent24: 12.811, per23: 2.392, per24: 2.47, pt23: 3.84, pt24: 3.82, pnt23: 12.36, pnt24: 12.55 },
+    'Valle de México Centro': { ssMVA: 3817, circMT: 439, kmMT: 5809, redMVA: 3580, servMiles: 2244, ventasGWh: 8922, saidi23: 12.32, saidi24: 11.97, saifi23: 0.39, saifi24: 0.37, caidi23: 31.47, caidi24: 32.26, ing23: 10.944, ing24: 11.161, ent23: 9.256, ent24: 9.45, per23: 1.688, per24: 1.712, pt23: 3.8, pt24: 3.74, pnt23: 11.82, pnt24: 11.79 },
+    'Valle de México Sur': { ssMVA: 4655, circMT: 469, kmMT: 11859, redMVA: 3791, servMiles: 2949, ventasGWh: 11803, saidi23: 14.18, saidi24: 11.11, saifi23: 0.41, saifi24: 0.34, caidi23: 34.34, caidi24: 32.47, ing23: 14.502, ing24: 14.694, ent23: 12.602, ent24: 12.983, per23: 1.9, per24: 1.711, pt23: 4.28, pt24: 4.24, pnt23: 9.03, pnt24: 7.62 },
+    'Bajío': { ssMVA: 6901, circMT: 1185, kmMT: 69403, redMVA: 4855, servMiles: 5013, ventasGWh: 33960, saidi23: 16.63, saidi24: 16.02, saifi23: 0.32, saifi24: 0.31, caidi23: 52.4, caidi24: 51.29, ing23: 26.504, ing24: 26.586, ent23: 23.448, ent24: 23.39, per23: 3.056, per24: 3.196, pt23: 4.98, pt24: 4.81, pnt23: 6.98, pnt24: 7.63 },
+    'Golfo Centro': { ssMVA: 3134, circMT: 588, kmMT: 31779, redMVA: 2840, servMiles: 2194, ventasGWh: 14752, saidi23: 23.4, saidi24: 22.42, saifi23: 0.39, saifi24: 0.38, caidi23: 59.57, caidi24: 59.03, ing23: 9.705, ing24: 9.933, ent23: 8.778, ent24: 8.931, per23: 0.927, per24: 1.002, pt23: 5.19, pt24: 5.09, pnt23: 4.7, pnt24: 5.34 },
+    'Centro Oriente': { ssMVA: 3919, circMT: 573, kmMT: 28361, redMVA: 2744, servMiles: 3641, ventasGWh: 16322, saidi23: 9.74, saidi24: 8.67, saifi23: 0.25, saifi24: 0.24, caidi23: 38.59, caidi24: 36.19, ing23: 13.31, ing24: 13.51, ent23: 11.876, ent24: 12.077, per23: 1.434, per24: 1.433, pt23: 4.79, pt24: 4.76, pnt23: 6.27, pnt24: 6.12 },
+    'Peninsular': { ssMVA: 4574, circMT: 690, kmMT: 22080, redMVA: 2616, servMiles: 2266, ventasGWh: 14765, saidi23: 14.32, saidi24: 14.3, saifi23: 0.39, saifi24: 0.41, caidi23: 36.41, caidi24: 35.09, ing23: 14.94, ing24: 15.673, ent23: 13.651, ent24: 14.196, per23: 1.289, per24: 1.477, pt23: 3.94, pt24: 3.79, pnt23: 5.02, pnt24: 5.96 },
+    'Jalisco': { ssMVA: 5104, circMT: 779, kmMT: 36278, redMVA: 3512, servMiles: 3649, ventasGWh: 18219, saidi23: 17.89, saidi24: 17.3, saifi23: 0.41, saifi24: 0.4, caidi23: 43.59, caidi24: 43.28, ing23: 17.47, ing24: 17.894, ent23: 15.523, ent24: 15.92, per23: 1.947, per24: 1.974, pt23: 4.64, pt24: 4.75, pnt23: 6.76, pnt24: 6.54 }
+  },
+  nac: { ssMVA: 81285, circMT: 12560, kmMT: 555336, redMVA: 60912, servMiles: 49101, ventasGWh: 293736, saidi23: 17.79, saidi24: 16.71, saifi23: 0.39, saifi24: 0.38, caidi23: 45.55, caidi24: 44.51, ing23: 263.551, ing24: 270.485, ent23: 229.604, ent24: 235.623, per23: 33.947, per24: 34.863, pt23: 4.62, pt24: 4.55, pnt23: 8.57, pnt24: 8.64 }
+};
+
+/* Factor de emisión del Sistema Eléctrico Nacional 2024 (el de 2025 sigue en elaboración por SENER). */
+/* Inversiones de las RGD 2025-2029 (MDP). PAMRGD 2025-2039, Tabla VI.1 (p. 37). Total = 4,319 + 8,869 + 8,611 + 8,434 + 7,829. */
+const PAM_INV = { src: { s: 'PAM25', p: '37', t: 'Tabla VI.1' }, years: [2025, 2026, 2027, 2028, 2029], anual: [4319, 8869, 8611, 8434, 7829], total: 38062, amp: 24828, mod: 5308, rei: 6085, gd: 1841 };
+const FE_SEN = { v: 0.444, u: 'tCO₂e/MWh', year: 2024, src: { s: 'SEM26', p: '1' } };
+
+/* Generación liquidada por CENACE, septiembre de 2026 (archivo data/gen-sep2026.json: 30 días × 24 h × 11 tecnologías). */
+const GEN_SEP26 = { src: { s: 'CEN26', p: '1–13' }, file: 'data/gen-sep2026.json' };
 
 /* Clasificación del recurso primario por tecnología (fósil / nuclear / renovable) */
 const FAMILY = {
@@ -159,6 +197,8 @@ const PLANTS = [
 
 /* ---------- Transmisión ---------- */
 const TX = {
+  /* Ampliación planeada de la RNT, PRODESEN 2024-2038, cap. 5 (pp. 111–112 impresas). Solo cifras textuales del documento. */
+  ampl: { src: { s: 'P24', p: '111–112', t: 'Figs. 5.2–5.3' }, totalKmc: 5719, rgdMT: 50.1, kv: { '400 kV': 2908.1, '230 kV': 1205.3, '161 a 69 kV': 1558.3 }, year: { 2025: 2802.1, 2026: 685, 2030: 1553.4 }, estados: ['Sinaloa', 'Coahuila', 'Chihuahua', 'Hidalgo', 'Estado de México', 'Guanajuato'] },
   kmByKv: { src: { s: 'P24', p: '156', t: 'Cuadro A1.1' }, years: [2021, 2022, 2023],
     kv: { '400 kV': [26098, 26125, 26135], '230 kV': [29723, 29743, 29743], '161 kV': [521, 521, 531], '138 kV': [1620, 1620, 1620], '115 kV': [48496, 48584, 48725], '85 kV': [1756, 1757, 1757], '69 kV': [2335, 2335, 2335] },
     total: [110549, 110685, 110846] },
@@ -202,9 +242,6 @@ const DIST = {
   perdidasRGD2023: { gwh: 33947, pct: 13.2, tec: 4.62, notec: 8.57, src: { s: 'P24', p: '143' } },
   saidi: { years: [2022, 2023, 2024], v: [19.248, 17.788, 16.708], saifi: [0.411, 0.391, 0.375], src: { s: 'IA24', p: '96' } },
   electrificacion: { v2023: 99.43, v2024: 99.64, src: { s: 'IA24', p: '96' } },
-  /* SAIDI acumulado a diciembre 2023 por división (min/usuario, sin eventos externos). CFE Distribución, IPA 2023, Anexo IV, p. 30 */
-  saidiDiv2023: { src: { s: 'DIST23', p: '30', t: 'Anexo IV, diciembre 2023' }, nacional: 17.788,
-    v: { 'Baja California': 19.765, 'Bajío': 16.63, 'Centro Occidente': 15.051, 'Centro Oriente': 9.741, 'Centro Sur': 16.64, 'Golfo Centro': 23.4, 'Golfo Norte': 17.44, 'Jalisco': 17.89, 'Noroeste': 16.271, 'Norte': 16.23, 'Oriente': 14.92, 'Peninsular': 14.324, 'Sureste': 36.33, 'Valle de México Centro': 12.32, 'Valle de México Norte': 18.17, 'Valle de México Sur': 14.18 } },
   /* Ventas y usuarios por sector tarifario. IA 2024, pp. 120-121 */
   sectores: { src: { s: 'IA24', p: '120-121' }, years: [2019, 2020, 2021, 2022, 2023, 2024],
     ventas: { 'Doméstico bajo consumo': [62181, 67012, 68287, 69833, 74540, 77811], 'Doméstico alto consumo': [2490, 1965, 1175, 757, 604, 487], 'Comercial': [15233, 13745, 14110, 15008, 15776, 16224], 'Servicios': [4160, 3961, 3865, 3910, 3698, 3665], 'Agrícola': [12455, 14009, 13509, 14159, 15722, 15191], 'Industrial': [122378, 105770, 105136, 110407, 112474, 111821] },

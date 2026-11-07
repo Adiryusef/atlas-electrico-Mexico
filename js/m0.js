@@ -29,6 +29,7 @@ window.M0 = (() => {
       <p>De dónde sale la energía que se convierte en electricidad. Distingue el ${term('recurso-primario', 'recurso primario')}, el ${term('combustible', 'combustible')}, el ${term('conversion', 'proceso de conversión')} y la ${term('tecnologia', 'tecnología')}.</p>
     </div>
     <div class="grid">
+      ${heroHTML()}
       <div class="sec-title"><span class="num">0.1</span><h2>Del recurso a la electricidad</h2></div>
       <div class="card c12">
         <div class="card-h"><div><h2>Elige un recurso y sigue la cadena</h2><p class="sub">Cada recurso pasa por cinco etapas distintas antes de llegar a la red.</p></div></div>
@@ -37,13 +38,11 @@ window.M0 = (() => {
       </div>
 
       <div class="sec-title"><span class="num">0.2</span><h2>Fósiles, nucleares y renovables</h2></div>
-      <div class="card c8"><div class="three" id="fams"></div>
-        <div class="callout"><b>Una tecnología puede usar varios combustibles.</b> PRODESEN agrupa como térmica convencional a centrales que queman gas natural, diésel, combustóleo o coque, y la combustión interna puede usar gas natural, diésel o combustóleo. Por eso conviene clasificar por recurso y no solo por tecnología. ${cite({ s: 'P24', p: '201', t: 'notas del Cuadro A1.11' })}</div>
-      </div>
-      <div class="card c4">
+      <div class="card c12"><div class="three" id="fams"></div></div>
+      <div class="card c5">
         <h2>Renovable ≠ limpia</h2>
         <p class="sub">${term('renovable', 'Renovable')} describe si el recurso se regenera; ${term('limpia', 'limpia')} es una categoría legal basada en emisiones.</p>
-        <svg viewBox="0 0 320 230" role="img" aria-labelledby="vennT" style="width:100%;height:auto">
+        <svg viewBox="0 0 320 230" role="img" aria-labelledby="vennT" style="width:100%;height:auto;max-width:440px;align-self:center">
           <title id="vennT">Diagrama: todas las renovables son limpias; la nuclear y la cogeneración eficiente son limpias pero no renovables.</title>
           <rect x="6" y="6" width="308" height="218" rx="18" fill="none" stroke="var(--line-2)" stroke-dasharray="5 4"/>
           <text x="20" y="30" font-size="13" font-weight="700" fill="var(--ink)">Energías limpias (definición legal)</text>
@@ -59,8 +58,12 @@ window.M0 = (() => {
           <text x="260" y="163" text-anchor="middle" font-size="12" font-weight="700" fill="var(--fosil)">eficiente</text>
           <text x="262" y="200" text-anchor="middle" font-size="11" fill="var(--ink-3)">limpias, no renovables</text>
         </svg>
-        <p class="note">La energía nucleoeléctrica y la cogeneración eficiente aparecen como energías limpias en la LIE de 2014 (art. 3, fr. XXII, incisos i y k) y en la Ley del Sector Eléctrico de 2025 (art. 3, fr. XXI). La Ley de Planeación y Transición Energética de 2025 define las renovables como fuentes que se regeneran de forma natural; el uranio no lo hace.</p>
+      </div>
+      <div class="card c7">
+        <h3>Qué dice la ley</h3>
+        <p>La energía nucleoeléctrica y la cogeneración eficiente aparecen como energías limpias en la LIE de 2014 (art. 3, fr. XXII, incisos i y k) y en la Ley del Sector Eléctrico de 2025 (art. 3, fr. XXI). La Ley de Planeación y Transición Energética de 2025 define las renovables como fuentes que se regeneran de forma natural; el uranio no lo hace.</p>
         ${cite([{ s: 'DOF14', p: '45–46' }, { s: 'DOF25', p: '86' }, { s: 'DOF25', p: '193' }])}
+        <div class="callout"><b>Una tecnología puede usar varios combustibles.</b> PRODESEN agrupa como térmica convencional a centrales que queman gas natural, diésel, combustóleo o coque, y la combustión interna puede usar gas natural, diésel o combustóleo. Por eso conviene clasificar por recurso y no solo por tecnología. ${cite({ s: 'P24', p: '201', t: 'notas del Cuadro A1.11' })}</div>
       </div>
 
       <div class="sec-title" id="clasificador"><span class="num">0.3</span><h2>Clasificador interactivo</h2></div>
@@ -70,6 +73,7 @@ window.M0 = (() => {
       <div class="card c12">
         <div class="conv-tabs chips" id="convTabs" role="group" aria-label="Cadena de conversión"></div>
         <div class="flow" id="flow"></div>
+        <div class="cv-ctl"><button class="btn ghost" type="button" id="cvPrev">◀ Anterior</button><button class="btn" type="button" id="cvPlay">▶ Reproducir</button><button class="btn ghost" type="button" id="cvNext">Siguiente ▶</button><div class="cv-track" aria-hidden="true"><i id="cvBar"></i></div></div>
         <div class="stage-info" id="stageInfo" aria-live="polite"></div>
       </div>
 
@@ -137,7 +141,7 @@ window.M0 = (() => {
     </div>`;
 
 
-    buildChain(root); buildFams(root); buildSorter(root); buildConv(root); buildMatrix(root); buildCmp(root); buildConsc(root); buildQuiz(root);
+    bindSubnav(root); buildChain(root); buildFams(root); buildSorter(root); buildConv(root); buildMatrix(root); buildCmp(root); buildConsc(root); buildQuiz(root);
   }
 
   /* ---------- 0.1 cadena ---------- */
@@ -148,14 +152,51 @@ window.M0 = (() => {
     drawChain(root);
   }
   function drawChain(root) {
-    const r = RES[state.res];
-    root.querySelector('#chain').innerHTML = [
-      ['Recurso primario', `${r.ic} ${r.n}`, `Familia: <b style="color:var(--${r.fam})">${FAMILY_LABEL[r.fam]}</b>`],
+    const r = RES[state.res]; const sh = share(r.imp);
+    const steps = [
+      ['Recurso primario', `<span class="big">${r.ic}</span> ${r.n}`, `Familia: <b style="color:var(--${r.fam})">${FAMILY_LABEL[r.fam]}</b>`],
       ['Fuente o combustible', r.comb, ''],
       ['Proceso de conversión', r.proc, ''],
       ['Tecnología de generación', r.tec.join(' · '), `Ver: ${term(r.key)}`],
-      ['Electricidad producida', `${pct(share(r.imp), 1)} de la generación nacional 2023`, `Tecnología: ${r.imp.join(' + ')} ${cite(GEN_NAC.src)}`]
-    ].map(([l, v, d]) => `<div class="st"><div class="sl">${l}</div><div class="sv">${v}</div><div class="sd">${d}</div></div>`).join('');
+      ['Electricidad producida', `${pct(sh, 1)} de la generación nacional 2023`, `Tecnología: ${r.imp.join(' + ')} ${cite(GEN_NAC.src)}<div class="mini" aria-hidden="true"><i style="width:${Math.max(2, sh)}%"></i></div>`]
+    ];
+    const chain = root.querySelector('#chain');
+    chain.style.setProperty('--c', `var(--${r.fam})`);
+    chain.innerHTML = steps.map(([l, v, d], i) => `<div class="st"><span class="n">${i + 1}</span><div class="sl">${l}</div><div class="sv">${v}</div><div class="sd">${d}</div></div>`).join('');
+  }
+
+  /* ---------- Resumen del módulo ---------- */
+  function heroHTML() {
+    const f = byFam(Object.fromEntries(Object.entries(GEN_NAC.tech).map(([t, a]) => [t, a[i23]])));
+    const P = k => f[k] / tot23 * 100;
+    const nav = ['Cadena', 'Familias', 'Clasificador', 'Conversión', 'Matriz', 'Comparador', 'Indicadores', 'Reflexión'];
+    return `
+      <div class="card c12 hero">
+        <div class="hero-top">
+          <div><h2>El sistema eléctrico nacional en una mirada</h2>
+          <p class="sub">Generación neta del SEN en 2023 según el recurso primario con que se produjo.</p></div>
+          <span class="badge nac">Nacional · 2023</span>
+        </div>
+        <div class="stackbar" role="img" aria-label="Fósil ${pct(P('fosil'))}, nuclear ${pct(P('nuclear'))}, renovable ${pct(P('renovable'))}">
+          <span style="width:${P('fosil')}%;background:var(--fosil)"><b>${pct(P('fosil'))}</b> fósil</span>
+          <span style="width:${P('nuclear')}%;background:var(--nuclear)"></span>
+          <span style="width:${P('renovable')}%;background:var(--renovable)"><b>${pct(P('renovable'))}</b> renovable</span>
+        </div>
+        <div class="hero-stats">
+          <div><b>${fmt(tot23)}</b><span>GWh generados</span></div>
+          <div><b style="color:var(--nuclear)">${pct(P('nuclear'))}</b><span>nuclear (Laguna Verde)</span></div>
+          <div><b style="color:var(--mint-ink,var(--renovable))">${pct(GEN_NAC.cleanPct[i23], 2)}</b><span>energía limpia oficial</span></div>
+        </div>
+        ${cite(GEN_NAC.src)}
+        <div class="subnav" role="navigation" aria-label="En este módulo">${nav.map((n, i) => `<button type="button" data-go="${i}"><span>0.${i + 1}</span>${n}</button>`).join('')}</div>
+      </div>`;
+  }
+  function bindSubnav(root) {
+    root.querySelector('.subnav').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const t = root.querySelectorAll('.sec-title')[+b.dataset.go];
+      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   /* ---------- 0.2 familias ---------- */
@@ -291,18 +332,33 @@ window.M0 = (() => {
       ['🌀', 'Turbina', 'Cinética → mecánica', 'El chorro o flujo de agua hace girar una turbina (Francis, Kaplan o Pelton).'],
       ['⚡', 'Electricidad', 'Mecánica → eléctrica', 'El generador convierte el giro en corriente alterna. El agua regresa al río.']] }
   };
+  const EF = [[/qu[ií]mica/i, 'quim'], [/t[eé]rmica/i, 'term'], [/mec[aá]nica/i, 'mec'], [/el[eé]ctrica|CD|CA/i, 'elec'], [/radiante/i, 'rad'], [/nuclear/i, 'nuc'], [/cin[eé]tica/i, 'cin'], [/potencial/i, 'pot']];
+  const efClass = t => (EF.find(([re]) => re.test(t)) || [0, 'term'])[1];
+  const efPills = txt => txt.split('→').map(x => x.trim()).map(x => `<span class="ef ef-${efClass(x)}">${x}</span>`).join('<span class="efa" aria-hidden="true">→</span>');
+  let timer = null;
+  const stopPlay = (root) => { if (timer) { clearInterval(timer); timer = null; } const b = root.querySelector('#cvPlay'); if (b) b.textContent = '▶ Reproducir'; };
   function buildConv(root) {
     const tabs = root.querySelector('#convTabs');
     tabs.innerHTML = Object.entries(CONV).map(([k, c]) => `<button type="button" class="chip" data-k="${k}" aria-pressed="${k === state.conv}">${c.n}</button>`).join('');
-    tabs.addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; state.conv = b.dataset.k; state.stage = 0; tabs.querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', x === b)); drawConv(root); });
-    root.querySelector('#flow').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.stage = +b.dataset.s; drawConv(root); });
+    tabs.addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; stopPlay(root); state.conv = b.dataset.k; state.stage = 0; tabs.querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', x === b)); drawConv(root); });
+    root.querySelector('#flow').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; stopPlay(root); state.stage = +b.dataset.s; drawConv(root); });
+    const n = () => CONV[state.conv].st.length;
+    root.querySelector('#cvPrev').addEventListener('click', () => { stopPlay(root); state.stage = (state.stage + n() - 1) % n(); drawConv(root); });
+    root.querySelector('#cvNext').addEventListener('click', () => { stopPlay(root); state.stage = (state.stage + 1) % n(); drawConv(root); });
+    root.querySelector('#cvPlay').addEventListener('click', () => {
+      if (timer) { stopPlay(root); return; }
+      if (state.stage >= n() - 1) { state.stage = 0; drawConv(root); }
+      root.querySelector('#cvPlay').textContent = '⏸ Pausar';
+      timer = setInterval(() => { if (state.stage >= n() - 1) { stopPlay(root); return; } state.stage++; drawConv(root); }, 1800);
+    });
     drawConv(root);
   }
   function drawConv(root) {
-    const c = CONV[state.conv];
-    root.querySelector('#flow').innerHTML = c.st.map(([ic, lb, en], i) => `${i ? '<span class="ar" aria-hidden="true">→</span>' : ''}<button type="button" data-s="${i}" aria-pressed="${i === state.stage}"><span class="ic" aria-hidden="true">${ic}</span><span class="lb">${lb}</span><span class="en">${en}</span></button>`).join('');
+    const c = CONV[state.conv]; const N = c.st.length;
+    root.querySelector('#flow').innerHTML = c.st.map(([ic, lb, en], i) => `${i ? `<span class="ar${i <= state.stage ? ' on' : ''}" aria-hidden="true"></span>` : ''}<button type="button" data-s="${i}" class="${i < state.stage ? 'past' : ''}" aria-pressed="${i === state.stage}" aria-label="Etapa ${i + 1}: ${lb}"><span class="ic" aria-hidden="true">${ic}</span><span class="lb">${lb}</span><span class="en">${efPills(en)}</span></button>`).join('');
     const s = c.st[state.stage];
-    root.querySelector('#stageInfo').innerHTML = `<b>Etapa ${state.stage + 1}: ${s[1]}</b> · <span class="note">${s[2]}</span><br>${s[3]}`;
+    root.querySelector('#cvBar').style.width = ((state.stage + 1) / N * 100) + '%';
+    root.querySelector('#stageInfo').innerHTML = `<b>Etapa ${state.stage + 1} de ${N}: ${s[1]}</b><div class="efrow">${efPills(s[2])}</div>${s[3]}`;
   }
 
   /* ---------- 0.5 matriz ---------- */
